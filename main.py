@@ -41,7 +41,7 @@ azure_model = AzureChatOpenAI(
 class AgentState(TypedDict):
     spec_text: str      # Input: The raw requirement text
     analysis_gaps: str  # Intermediate: The gaps found by Gemini
-    jira_tickets: str   # Output: The final tickets formatted by Azure
+    ado_tickets: str    # Output: The final tickets formatted by Azure
 
 # --- NODES (The Steps) ---
 
@@ -69,9 +69,9 @@ def analyze_requirements_node(state: AgentState):
 
 def draft_tickets_node(state: AgentState):
     """
-    Step 2: Use Azure OpenAI to take the analysis and write Jira tickets.
+    Step 2: Use Azure OpenAI to take the analysis and write Azure DevOps tickets.
     """
-    print("--- STEP 2: Azure OpenAI is drafting Jira tickets... ---")
+    print("--- STEP 2: Azure OpenAI is drafting Azure DevOps tickets... ---")
     
     analysis = state['analysis_gaps']
     original_spec = state['spec_text']
@@ -79,9 +79,9 @@ def draft_tickets_node(state: AgentState):
     prompt = f"""
     You are a Technical Product Owner. 
     Based on the original request and the Architect's gap analysis below, 
-    write 3 structured Jira tickets.
+    write 3 structured Azure DevOps Work Items.
     
-    Format them strictly as JSON with fields: 'Title', 'User Story', 'Acceptance Criteria'.
+    Format them strictly as JSON with fields: 'Title', 'Description', 'Acceptance Criteria'.
     
     ORIGINAL REQUEST:
     {original_spec}
@@ -94,7 +94,7 @@ def draft_tickets_node(state: AgentState):
     response = azure_model.invoke([HumanMessage(content=prompt)])
     
     # Update the state with the final tickets
-    return {"jira_tickets": response.content}
+    return {"ado_tickets": response.content}
 
 # --- THE GRAPH (The Architecture) ---
 # This defines the workflow: Start -> Analyze -> Draft -> End
@@ -128,5 +128,5 @@ if __name__ == "__main__":
     result = app.invoke({"spec_text": sample_spec})
     
     print("\n\n################ FINAL OUTPUT ################\n")
-    print(result['jira_tickets'])
+    print(result['ado_tickets'])
     print("\n##############################################")
