@@ -33,14 +33,18 @@ gemini_model = ChatVertexAI(
 # If you don't have Azure keys yet, you can swap this class for standard `ChatOpenAI`.
 azure_model = AzureChatOpenAI(
     azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4"),
-    openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT", "https://your-org.openai.azure.com/"),
+    openai_api_version=os.getenv(
+        "AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT",
+                             "https://your-org.openai.azure.com/"),
     api_key=os.getenv("AZURE_OPENAI_API_KEY")
 )
 
 # --- THE AGENT STATE ---
 # In LangGraph, "State" is the shared memory that passes between steps.
 # It works like a dictionary that gets updated as the agent moves through the graph.
+
+
 class AgentState(TypedDict):
     spec_text: str      # Input: The raw requirement text
     analysis_gaps: str  # Intermediate: The gaps found by Gemini
@@ -48,14 +52,15 @@ class AgentState(TypedDict):
 
 # --- NODES (The Steps) ---
 
+
 def analyze_requirements_node(state: AgentState):
     """
     Step 1: Use Google Gemini to analyze the spec for missing details.
     """
     print("--- STEP 1: Google Gemini is analyzing the requirements... ---")
-    
+
     spec = state['spec_text']
-    
+
     prompt = f"""
     You are a Senior Solutions Architect. Analyze the following project requirement text.
     Identify technical gaps, missing acceptance criteria, and vague statements.
@@ -63,12 +68,13 @@ def analyze_requirements_node(state: AgentState):
     REQUIREMENT TEXT:
     {spec}
     """
-    
+
     # Invoke Gemini
     response = gemini_model.invoke([HumanMessage(content=prompt)])
-    
+
     # Update the state with the analysis
     return {"analysis_gaps": response.content}
+
 
 def draft_tickets_node(state: AgentState):
     """
@@ -105,6 +111,7 @@ def draft_tickets_node(state: AgentState):
 
     # Update the state with the final tickets
     return {"ado_tickets": response.content}
+
 
 def export_to_ado_csv(tickets_json: str, output_file: str = "ado_work_items.csv"):
     """
@@ -154,7 +161,8 @@ def export_to_ado_csv(tickets_json: str, output_file: str = "ado_work_items.csv"
                     "Priority": ticket.get("Priority", "2")
                 })
 
-        print(f"\n✓ Successfully exported {len(tickets)} work items to: {output_file}")
+        print(
+            f"\n✓ Successfully exported {len(tickets)} work items to: {output_file}")
         return output_file
 
     except json.JSONDecodeError as e:
@@ -173,6 +181,7 @@ def export_to_ado_csv(tickets_json: str, output_file: str = "ado_work_items.csv"
 # --- THE GRAPH (The Architecture) ---
 # This defines the workflow: Start -> Analyze -> Draft -> End
 
+
 workflow = StateGraph(AgentState)
 
 # Add our nodes
@@ -180,9 +189,9 @@ workflow.add_node("analyze_spec", analyze_requirements_node)
 workflow.add_node("create_tickets", draft_tickets_node)
 
 # Add edges (Connect the dots)
-workflow.set_entry_point("analyze_spec") # Start here
-workflow.add_edge("analyze_spec", "create_tickets") # Then go here
-workflow.add_edge("create_tickets", END) # Then finish
+workflow.set_entry_point("analyze_spec")  # Start here
+workflow.add_edge("analyze_spec", "create_tickets")  # Then go here
+workflow.add_edge("create_tickets", END)  # Then finish
 
 # Compile the graph into a runnable application
 app = workflow.compile()

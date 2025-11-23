@@ -1,0 +1,292 @@
+[
+  {
+    "key": "MOBILE-LOGIN-001",
+    "summary": "Implement Mobile App Login Page (Email/Password)",
+    "issueType": "Story",
+    "priority": "High",
+    "assignee": "frontend-mobile-team",
+    "reporter": "solutions-architect",
+    "labels": [
+      "mobile",
+      "auth",
+      "ui",
+      "security"
+    ],
+    "components": [
+      "iOS",
+      "Android",
+      "API-Integration"
+    ],
+    "storyPoints": 5,
+    "description": "Build the first-production login screen for the mobile app supporting email/username + password authentication with secure session handling and comprehensive client-side validation.\n\nThis ticket covers UI, client validation, network integration with Auth API, secure token storage, accessibility, localization and telemetry (analytics events). It does NOT include MFA enrollment or social logins (separate ticket).",
+    "acceptanceCriteria": [
+      "UI matches approved design mockups for iOS and Android (layouts adapt to small/large screens and safe area).",
+      "Fields: Email/Username input, Password input with show/hide toggle, 'Forgot password' link, 'Sign in' button, 'Create account' CTA, 'Remember me' checkbox (optional), and inline validation messages.",
+      "Client-side validation enforces: email format for email field; password non-empty; password complexity hint (see PASSWORD POLICY ticket for exact rules) shown to user when creating/changing password.",
+      "On 'Sign in', app calls POST /api/v1/auth/login with {identifier, password, deviceInfo}. Request/response logging redacts sensitive fields.",
+      "Successful login: receives access token (JWT) and refresh token; access token stored in memory, refresh token stored in secure storage (iOS Keychain / Android EncryptedSharedPreferences).",
+      "Unsuccessful login: display user-friendly error messages for invalid credentials, locked account, rate limited, server error (500). HTTP 4xx error mapping implemented.",
+      "Session expiry handling: if access token expires, automatically attempt refresh using refresh token; if refresh fails, redirect to login and clear tokens.",
+      "Rate-limit and lockout: display a generic message after 5 failed attempts and follow server-provided retry-after header.",
+      "Accessibility: all interactive elements reachable via screen readers; labels provided; contrast meets WCAG AA.",
+      "Localization: strings externalized; English and one additional language (e.g., Spanish) present for QA.",
+      "Analytics: emit login_attempt, login_success, login_failure events with non-sensitive metadata (no passwords, no tokens).",
+      "End-to-end QA tests demonstrate successful login, failed login, token refresh and logout flows."
+    ],
+    "definitionOfDone": [
+      "UI implemented and reviewed; design QA signoff",
+      "API contract integration tested against staging (mock server if API not available)",
+      "Automated unit tests for validation logic (>=80% coverage for component)",
+      "Integration test for token storage & refresh",
+      "Manual accessibility checklist completed",
+      "Documentation updated: README, API endpoints used, secure storage details",
+      "Security review completed (no plaintext token storage; network calls use TLS; sensitive logs disabled)"
+    ],
+    "tasks": [
+      {
+        "taskId": "M-1",
+        "summary": "Build login screen UI components for iOS and Android"
+      },
+      {
+        "taskId": "M-2",
+        "summary": "Implement client-side validation and inline error messages"
+      },
+      {
+        "taskId": "M-3",
+        "summary": "Integrate with POST /api/v1/auth/login (handle 200, 4xx, 5xx, retry-after)"
+      },
+      {
+        "taskId": "M-4",
+        "summary": "Implement secure token storage and token refresh flow"
+      },
+      {
+        "taskId": "M-5",
+        "summary": "Add analytics events and localization strings"
+      },
+      {
+        "taskId": "M-6",
+        "summary": "Write unit and integration tests; QA checklist"
+      }
+    ],
+    "dependencies": [
+      "Auth-API: POST /api/v1/auth/login (contract must be available)",
+      "PASSWORD-POLICY ticket (MOBILE-LOGIN-002) for complexity details to show hints"
+    ],
+    "securityConsiderations": [
+      "Do not log passwords or tokens. Ensure Transport Layer Security (TLS 1.2+).",
+      "Use platform secure storage for refresh tokens. Do not persist access tokens to disk.",
+      "Implement certificate pinning if required by security policy (separate ticket if needed).",
+      "Protect against brute-force: obey server provided lockout and retry-after headers."
+    ],
+    "uiLinks": {
+      "mockups": "https://design.example.com/mobile/login-v2",
+      "assets": [
+        "https://design.example.com/assets/login-illustration.png"
+      ]
+    }
+  },
+  {
+    "key": "MOBILE-LOGIN-002",
+    "summary": "Define and Enforce Password Policy (Client & Server Validation)",
+    "issueType": "Task",
+    "priority": "Highest",
+    "assignee": "security-team",
+    "reporter": "solutions-architect",
+    "labels": [
+      "security",
+      "auth",
+      "password-policy"
+    ],
+    "components": [
+      "Auth-Service",
+      "Mobile-Clients"
+    ],
+    "storyPoints": 3,
+    "description": "Establish a secure, usable password complexity policy and implement enforcement both client-side (for UX) and server-side (for security). The mobile client must reflect the policy in UI hints and perform the same checks to reduce server round-trips. Server-side remains authoritative.",
+    "passwordPolicy": {
+      "minLength": 12,
+      "maxLength": 128,
+      "requiredCategories": {
+        "lowercase": 1,
+        "uppercase": 1,
+        "digits": 1,
+        "specialCharacters": 1
+      },
+      "disallowedPatterns": [
+        "sequences of 4 or more repeated characters",
+        "commonPasswords (use top 100k list)",
+        "username or email substring match (>=4 chars)"
+      ],
+      "entropyGuideline": "Prefer passwords with >= 50 bits estimated entropy",
+      "prohibited": [
+        "password reuse of last 5 passwords (server enforced)",
+        "empty or whitespace-only passwords"
+      ],
+      "passwordStrengthMeter": {
+        "levels": [
+          "Very weak",
+          "Weak",
+          "Fair",
+          "Strong",
+          "Very strong"
+        ],
+        "clientImplementation": "zxcvbn or similar algorithm to display strength; server uses policy + blacklist"
+      }
+    },
+    "acceptanceCriteria": [
+      "Auth service rejects passwords that do not meet server-side policy and returns structured error codes and messages (e.g., PASSWORD_TOO_SHORT, MISSING_SPECIAL_CHAR).",
+      "Mobile client implements the same validation rules and displays actionable inline messages prior to submit.",
+      "Common password blacklist check performed server-side using top 100k list; client shows 'too common' feedback when obvious.",
+      "Password strength meter present on signup/change-password screens using zxcvbn (or equivalent).",
+      "Server enforces password history: cannot reuse last 5 passwords.",
+      "Password reset flow enforces policy when user sets a new password.",
+      "Unit tests for validation rules (client & server) and integration tests for error mapping."
+    ],
+    "definitionOfDone": [
+      "Password policy documented in central security wiki (with examples and error codes)",
+      "Server-side validation implemented and covered by automated tests",
+      "Mobile client validation implemented, tested, and integrated with UI",
+      "API error codes and messages documented for frontend teams",
+      "Security review completed and approved"
+    ],
+    "tasks": [
+      {
+        "taskId": "P-1",
+        "summary": "Finalize policy document and error code list"
+      },
+      {
+        "taskId": "P-2",
+        "summary": "Implement server-side validators and blacklist check"
+      },
+      {
+        "taskId": "P-3",
+        "summary": "Expose policy metadata endpoint GET /api/v1/auth/password-policy for clients"
+      },
+      {
+        "taskId": "P-4",
+        "summary": "Add client-side validation, strength meter and inline messages"
+      },
+      {
+        "taskId": "P-5",
+        "summary": "Write unit and integration tests for client and server"
+      }
+    ],
+    "dependencies": [
+      "Auth-API changes to support clear error codes and the password-policy endpoint",
+      "Access to common-password blacklist dataset (security infra)"
+    ],
+    "securityConsiderations": [
+      "Server is authoritative: never rely solely on client-side validation.",
+      "Do not leak whether a particular password is in the blacklist via side-channels.",
+      "Rate-limit password-change/reset endpoints and monitor for abuse.",
+      "Store password hashes using a memory-hard algorithm (e.g., Argon2id) with appropriate parameters."
+    ]
+  },
+  {
+    "key": "MOBILE-LOGIN-003",
+    "summary": "Implement MFA (TOTP) and Secure Forgot Password / Account Recovery Flow",
+    "issueType": "Epic",
+    "priority": "High",
+    "assignee": "auth-backend-team",
+    "reporter": "solutions-architect",
+    "labels": [
+      "auth",
+      "mfa",
+      "recovery",
+      "security"
+    ],
+    "components": [
+      "Auth-Service",
+      "Mobile-Clients",
+      "Email-Service",
+      "SMS-Service"
+    ],
+    "storyPoints": 8,
+    "description": "Add multi-factor authentication (primary support: TOTP via authenticator apps) and a secure 'Forgot Password' and account recovery flow. Provide mobile UI flows for MFA enrollment, verification, backup codes, and recovery. Support optional SMS/Email OTP as a secondary mechanism (configurable by product/security).",
+    "scope": [
+      "TOTP MFA enrollment, verification, authentication step during login",
+      "Backup codes generation and management (one-time use)",
+      "Secure Forgot Password flow using email OTP and password reset form enforcing password policy",
+      "Recovery path for lost MFA device (backup codes or support escalation)",
+      "APIs to manage MFA: enroll, verify, disable, list methods"
+    ],
+    "acceptanceCriteria": [
+      "User can enroll TOTP MFA: server returns provisioning URI and QR code; client displays QR and manual key; requires verification code entry to complete enrollment.",
+      "During login, if user has MFA enabled, after primary auth the server returns 200 with 'mfa_required' and supported methods; client prompts for code and submits to /api/v1/auth/mfa/verify.",
+      "Backup codes: server generates 8 single-use backup codes; client displays them once with clear instructions to store securely; server marks codes as used on redemption.",
+      "Forgot password flow: POST /api/v1/auth/forgot-password initiates email OTP; user receives time-limited token (exp: 15 minutes); password reset endpoint validates token and enforces password policy and history.",
+      "Rate limiting for OTP and forgot-password endpoints implemented; anti-enumeration protections present (generic success response for unknown emails).",
+      "Recovery flow for lost MFA device documented: accept backup code or initiate support override (manual escalation).",
+      "Audit events emitted for enrollment, disablement, failed MFA attempts, backup code generation and redemption.",
+      "QA test cases cover: enroll TOTP, login with TOTP, use backup code, disable MFA, forgot-password happy path and abuse scenarios."
+    ],
+    "definitionOfDone": [
+      "Backend APIs implemented and documented (OpenAPI spec updated).",
+      "Mobile UI flows implemented and integrated with APIs.",
+      "Backup codes creation & one-time-use enforced.",
+      "Rate limiting and anti-enumeration logic in place.",
+      "Security review and threat model updates completed.",
+      "Operational monitoring: alert on abnormal failed MFA attempts or OTP send rates."
+    ],
+    "tasks": [
+      {
+        "taskId": "F-1",
+        "summary": "Design API contracts for MFA (enroll, verify, challenge, disable) and forgot-password endpoints"
+      },
+      {
+        "taskId": "F-2",
+        "summary": "Implement TOTP generation/verification and QR provisioning"
+      },
+      {
+        "taskId": "F-3",
+        "summary": "Implement backup codes generation & redemption flow"
+      },
+      {
+        "taskId": "F-4",
+        "summary": "Implement forgot-password email OTP flow with secure tokens"
+      },
+      {
+        "taskId": "F-5",
+        "summary": "Implement client UI screens for MFA enrollment, MFA challenge, backup code display, forgot-password and reset"
+      },
+      {
+        "taskId": "F-6",
+        "summary": "Add logging, audit events and monitoring for MFA/recovery endpoints"
+      }
+    ],
+    "dependencies": [
+      "Email/SMS transactional service availability",
+      "Auth service password-policy and token/store implementation (MOBILE-LOGIN-002)",
+      "Client login screen implemented (MOBILE-LOGIN-001)"
+    ],
+    "securityConsiderations": [
+      "OTP tokens must be short-lived (<=15 minutes) and single-use where applicable.",
+      "Avoid information leakage in forgot-password responses (always return generic success message).",
+      "MFA disablement requires re-authentication or a secure recovery process.",
+      "Backup codes must be single-use and stored hashed server-side (never plaintext).",
+      "Monitor for credential stuffing and block abusive IPs."
+    ],
+    "apiEndpoints": [
+      {
+        "path": "POST /api/v1/auth/mfa/enroll",
+        "description": "Start TOTP enrollment; returns provisioning URI and temporary enrollment id"
+      },
+      {
+        "path": "POST /api/v1/auth/mfa/verify",
+        "description": "Verify TOTP during enrollment or login; returns tokens if successful"
+      },
+      {
+        "path": "POST /api/v1/auth/mfa/backup-codes",
+        "description": "Generate backup codes"
+      },
+      {
+        "path": "POST /api/v1/auth/forgot-password",
+        "description": "Initiate password reset (email OTP)"
+      },
+      {
+        "path": "POST /api/v1/auth/reset-password",
+        "description": "Complete password reset with temporary token and new password"
+      }
+    ]
+  }
+]

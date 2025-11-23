@@ -1,26 +1,4 @@
 Work Item Type,Title,Description,Acceptance Criteria,Priority
-User Story,Discover and finalize migration scope and constraints for Customer Loyalty DB,"Gather all missing information required to design and execute the migration. This includes confirming the specific on-prem SQL engine and version, database size and growth characteristics, acceptable downtime/RPO/RTO, regulatory/compliance requirements, preferred cloud provider(s) and region(s), network constraints, and the new mobile app's integration and performance requirements. Deliverables: requirements questionnaire completed with application and infra owners, inventory of database objects, data size and growth report, list of stakeholders and sign-off on acceptance criteria for migration.","- A completed requirements questionnaire signed by DB and app owners
-- Identification of SQL engine (e.g., SQL Server/Postgres), exact version and edition
-- Measured database sizes (data, log, backups) and growth metrics documented
-- Agreed RPO, RTO, maintenance windows, and acceptable downtime documented and approved
-- Clear target cloud preference(s) and candidate regions documented
-- Documented access pattern and performance SLA requirements from the mobile app team
-- Stakeholder sign-off recorded and next-step decision points defined",1
-Feature,Design target cloud architecture and security model for Customer Loyalty DB,"Create a target architecture for the Customer Loyalty database in the cloud based on discovered constraints. Evaluate options (managed PaaS DB, IaaS VM, or re-platform) and recommend a target service, instance sizing, high-availability pattern, backup/DR approach, network topology (VNet/subnet, peering, VPN/ExpressRoute), and security controls (authentication, encryption at rest/in transit, key management, firewall, least-privilege access). Produce architecture diagrams, cost estimates, and a security control checklist aligned to compliance requirements.","- Evaluation document showing recommended target (PaaS vs IaaS vs other) with rationale and cost estimate
-- Architecture diagram(s) showing network, DB HA/DR, backups, and connectivity to mobile-backend/API layer
-- Security design covering authentication (managed identities/AD), encryption, key management, network ACLs, and monitoring/logging
-- List of required cloud resources and estimated sizing/costs
-- Risk register with mitigation steps for major design risks (data leakage, downtime, migration complexity)
-- Architecture and security artifacts reviewed and approved by Solutions Architect and Security team",1
-Task,"Create detailed migration plan, runbook, and validation tests","Develop a step-by-step migration plan based on the selected architecture and migration approach (e.g., backup/restore, replication, DMS). The plan must include pre-migration checks, migration steps, cutover procedure, rollback plan, validation and data integrity checks, performance testing plan, timeline with maintenance windows, and required automation scripts. Produce a runbook for ops to execute the migration and a test suite to validate data correctness and application functionality post-migration.","- A migration runbook containing pre-checks, exact commands/scripts, roles & responsibilities, and cutover/rollback steps
-- Automated scripts or documented manual steps to perform migration and validate data integrity
-- A test plan with defined test cases for functional, data integrity, and performance validation (including mobile app integration tests)
-- Schedule with proposed cutover window and communication plan for stakeholders
-- Rollback plan validated with a dry run or tabletop exercise documented
-- Migration plan reviewed and signed off by DB, App, and Operations teams",1
-User Story,Implement secure connectivity and API/back-end integration for mobile app,"Implement and validate the integration pattern for the new mobile app to access Customer Loyalty data via a secure backend/API layer (do not allow direct DB connections from mobile). Include API gateway, authentication/authorization (OAuth2/OpenID Connect), rate limiting, TLS, and monitoring. Validate end-to-end flows with the mobile app: authentication, common read/write operations, and expected performance under peak load. Provide configuration and runbooks for secure access and operational monitoring.","- A backend/API design implemented that provides mobile app access to required DB functionality (no direct DB connections)
-- Authentication and authorization implemented (e.g., OAuth2 / managed identities) and tested
-- TLS enforced end-to-end and network paths secured (firewalls, private endpoints)
-- Load/performance test results demonstrating the integration meets agreed mobile SLA under expected load
-- Logging, metrics, and alerting configured for API and DB access (retention and access controls documented)
-- Integration tests executed and passed by mobile app team, with defects tracked and resolved",2
+User Story,,,,2
+User Story,,,,2
+User Story,,,,2
