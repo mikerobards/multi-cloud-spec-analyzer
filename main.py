@@ -1,4 +1,6 @@
 import os
+import csv
+import json
 from typing import TypedDict
 from dotenv import load_dotenv
 
@@ -18,10 +20,11 @@ load_dotenv()
 # Ensure you run `gcloud auth application-default login` in your terminal first.
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "your-google-cloud-project-id")
 gemini_model = ChatVertexAI(
-    model_name="gemini-1.5-pro",
+    model_name="gemini-2.5-flash",  # or "gemini-2.0-flash-exp"
     temperature=0,
     max_output_tokens=2048,
-    project=GCP_PROJECT_ID
+    project=GCP_PROJECT_ID,
+    location="us-central1"
 )
 
 # 2. Azure OpenAI (The "Writer" Brain)
@@ -72,29 +75,100 @@ def draft_tickets_node(state: AgentState):
     Step 2: Use Azure OpenAI to take the analysis and write Azure DevOps tickets.
     """
     print("--- STEP 2: Azure OpenAI is drafting Azure DevOps tickets... ---")
-    
+
     analysis = state['analysis_gaps']
     original_spec = state['spec_text']
-    
+
     prompt = f"""
-    You are a Technical Product Owner. 
-    Based on the original request and the Architect's gap analysis below, 
-    write 3 structured Azure DevOps Work Items.
-    
-    Format them strictly as JSON with fields: 'Title', 'Description', 'Acceptance Criteria'.
-    
+    You are a Technical Product Owner.
+    Based on the original request and the Architect's gap analysis below,
+    write 3-5 structured Azure DevOps Work Items.
+
+    Return ONLY a valid JSON array. Each work item must have these exact fields:
+    - "Work Item Type": Must be one of: "User Story", "Task", "Bug", "Feature"
+    - "Title": A clear, concise title (max 100 characters)
+    - "Description": Detailed description of the work item
+    - "Acceptance Criteria": Bulleted list of criteria (use "- " for bullets)
+    - "Priority": Must be one of: "1", "2", "3", "4"
+
     ORIGINAL REQUEST:
     {original_spec}
-    
+
     ARCHITECT'S ANALYSIS:
     {analysis}
+
+    Return ONLY the JSON array, no additional text or markdown code blocks.
     """
-    
+
     # Invoke Azure OpenAI
     response = azure_model.invoke([HumanMessage(content=prompt)])
-    
+
     # Update the state with the final tickets
     return {"ado_tickets": response.content}
+
+def export_to_ado_csv(tickets_json: str, output_file: str = "ado_work_items.csv"):
+    """
+    Exports the JSON tickets to a CSV file compatible with Azure DevOps import.
+
+    Args:
+        tickets_json: JSON string containing the work items
+        output_file: Path to the output CSV file
+
+    Returns:
+        Path to the created CSV file
+    """
+    try:
+        # Clean up the JSON string (remove markdown code blocks if present)
+        cleaned_json = tickets_json.strip()
+        if cleaned_json.startswith("```json"):
+            cleaned_json = cleaned_json.split("```json")[1]
+        if cleaned_json.startswith("```"):
+            cleaned_json = cleaned_json.split("```")[1]
+        if cleaned_json.endswith("```"):
+            cleaned_json = cleaned_json.rsplit("```", 1)[0]
+        cleaned_json = cleaned_json.strip()
+
+        # Parse the JSON
+        tickets = json.loads(cleaned_json)
+
+        # Azure DevOps CSV format headers
+        fieldnames = [
+            "Work Item Type",
+            "Title",
+            "Description",
+            "Acceptance Criteria",
+            "Priority"
+        ]
+
+        # Write to CSV
+        with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for ticket in tickets:
+                writer.writerow({
+                    "Work Item Type": ticket.get("Work Item Type", "User Story"),
+                    "Title": ticket.get("Title", ""),
+                    "Description": ticket.get("Description", ""),
+                    "Acceptance Criteria": ticket.get("Acceptance Criteria", ""),
+                    "Priority": ticket.get("Priority", "2")
+                })
+
+        print(f"\n✓ Successfully exported {len(tickets)} work items to: {output_file}")
+        return output_file
+
+    except json.JSONDecodeError as e:
+        print(f"\n✗ Error parsing JSON: {e}")
+        print(f"Response content:\n{tickets_json}")
+        # Fallback: Save the raw output to a text file
+        fallback_file = "ado_work_items_raw.txt"
+        with open(fallback_file, 'w', encoding='utf-8') as f:
+            f.write(tickets_json)
+        print(f"Saved raw output to: {fallback_file}")
+        return None
+    except Exception as e:
+        print(f"\n✗ Error exporting to CSV: {e}")
+        return None
 
 # --- THE GRAPH (The Architecture) ---
 # This defines the workflow: Start -> Analyze -> Draft -> End
@@ -117,16 +191,27 @@ app = workflow.compile()
 if __name__ == "__main__":
     # Simulate a vague requirement input (typical PO scenario)
     sample_spec = """
-    We need to migrate the 'Customer Loyalty' SQL database from on-prem 
-    to the cloud. It needs to work with the new mobile app. 
+    We need to migrate the 'Customer Loyalty' SQL database from on-prem
+    to the cloud. It needs to work with the new mobile app.
     Make sure it's secure.
     """
 
     print(f"INPUT SPEC: {sample_spec.strip()}\n")
-    
+
     # Run the graph
     result = app.invoke({"spec_text": sample_spec})
-    
+
     print("\n\n################ FINAL OUTPUT ################\n")
     print(result['ado_tickets'])
     print("\n##############################################")
+
+    # Export to CSV for Azure DevOps import
+    csv_file = export_to_ado_csv(result['ado_tickets'])
+
+    if csv_file:
+        print(f"\n📋 Import Instructions:")
+        print(f"   1. Go to Azure DevOps > Boards > Work Items")
+        print(f"   2. Click 'Import Work Items' or use the Excel plugin")
+        print(f"   3. Upload the file: {csv_file}")
+        print(f"   4. Map the columns if prompted")
+        print(f"   5. Complete the import")
